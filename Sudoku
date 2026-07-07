@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sudoku — Drafting Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --desk: #1b1c1f;
+    --desk-edge: #101113;
+    --paper: #efe9da;
+    --paper-line: #cfc6ae;
+    --paper-line-thick: #5a5344;
+    --graphite: #2b2924;
+    --pencil: #3d4a52;
+    --redpen: #a8402a;
+    --brass: #c99a4b;
+    --brass-dim: #8a6f40;
+    --ok: #4c7a5b;
+    --err: #a8402a;
+    --text-light: #e9e4d6;
+    --text-dim: #9a9488;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 20% 10%, #232427 0%, var(--desk) 45%, var(--desk-edge) 100%);
+    color: var(--text-light);
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 18px 14px 60px;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #34363a;
+    padding-bottom: 10px;
+  }
+
+  .masthead h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-size: 22px;
+    margin: 0;
+    color: var(--brass);
+  }
+  .masthead .sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+
+  select, button {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 3px;
+    padding: 9px 14px;
+    border: 1px solid #3c3e42;
+    background: #26282c;
+    color: var(--text-light);
+    cursor: pointer;
+  }
+  select:focus, button:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 1px;
+  }
+  button.primary {
+    background: var(--brass);
+    color: #201a0d;
+    border-color: var(--brass);
+  }
+  button.primary:hover { background: #d8ab5e; }
+  button:hover { background: #2f3236; }
+
+  .layout {
+    display: flex;
+    gap: 22px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .desk-panel {
+    background: linear-gradient(180deg, #24262a, #1d1e21);
+    border: 1px solid #34363a;
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .stopwatch {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 24px;
+    letter-spacing: 2px;
+    color: var(--text-light);
+    background: #141517;
+    border: 1px solid #34363a;
+    padding: 6px 20px;
+    border-radius: 4px;
+  }
+  .stopwatch.done { color: var(--ok); }
+
+  .paper {
+    background: var(--paper);
+    padding: 14px;
+    border-radius: 2px;
+    box-shadow:
+      0 2px 0 #d8d0ba,
+      0 14px 28px -12px rgba(0,0,0,0.55),
+      inset 0 0 0 1px #d8d0ba;
+    transform: rotate(-0.2deg);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    width: min(84vw, 400px);
+    height: min(84vw, 400px);
+    background: var(--paper-line-thick);
+    gap: 1px;
+    border: 2px solid var(--paper-line-thick);
+  }
+
+  .cell {
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(15px, 3.6vw, 20px);
+    cursor: pointer;
+    user-select: none;
+    color: var(--redpen);
+    font-weight: 500;
+  }
+  .cell.given { color: var(--graphite); font-weight: 700; cursor: default; }
+  .cell.selected { background: #ddd2b0; }
+  .cell.peer { background: #e5dcc2; }
+  .cell.same-value { background: #d9cc9c; }
+  .cell.error { color: #7a1f0f; text-decoration: underline wavy #7a1f0f; }
+
+  .cell:nth-child(3n) { border-right: 2px solid var(--paper-line-thick); }
+  .cell:nth-child(9n) { border-right: none; }
+  .cell:nth-child(n+19):nth-child(-n+27),
+  .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--paper-line-thick); }
+
+  .number-pad {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 6px;
+    width: min(84vw, 400px);
+  }
+  .number-pad button {
+    padding: 9px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+  }
+
+  .action-row { display: flex; gap: 8px; }
+
+  .status { min-height: 18px; font-size: 13px; color: var(--text-dim); }
+  .status.err { color: var(--err); }
+  .status.ok { color: var(--ok); }
+
+  .leaderboard {
+    width: 250px;
+    background: linear-gradient(180deg, #24262a, #1d1e21);
+    border: 1px solid #34363a;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .leaderboard h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    margin: 0 0 2px;
+    color: var(--brass);
+  }
+  .leaderboard .note {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .leaderboard ol { margin: 0; padding-left: 20px; font-size: 13px; }
+  .leaderboard li { margin-bottom: 6px; }
+  .leaderboard li .name { color: var(--text-light); }
+  .leaderboard li .time { font-family: 'IBM Plex Mono', monospace; color: var(--brass); }
+
+  dialog {
+    background: #24262a;
+    color: var(--text-light);
+    border: 1px solid var(--brass-dim);
+    border-radius: 8px;
+    padding: 22px;
+    max-width: 300px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.65); }
+  dialog h2 { font-family: 'IBM Plex Mono', monospace; color: var(--brass); margin-top: 0; }
+  dialog form { display: flex; flex-direction: column; gap: 12px; }
+  dialog input {
+    background: #141517;
+    border: 1px solid #3c3e42;
+    color: var(--text-light);
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .dialog-buttons { display: flex; gap: 8px; }
+
+  .disclosure {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div>
+      <h1>SUDOKU</h1>
+      <div class="sub">drafting table edition</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <select id="difficulty">
+      <option value="easy">Easy</option>
+      <option value="normal" selected>Normal</option>
+      <option value="hard">Hard</option>
+    </select>
+    <button class="primary" id="new-game">New puzzle</button>
+  </div>
+
+  <div class="layout">
+    <div class="desk-panel">
+      <div class="stopwatch" id="stopwatch">00:00</div>
+      <div class="paper"><div class="board" id="board"></div></div>
+      <div class="number-pad" id="number-pad"></div>
+      <div class="action-row">
+        <button id="erase-btn">Erase</button>
+        <button id="check-btn">Check</button>
+      </div>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div class="leaderboard">
+      <h2 id="lb-title">Best times — Normal</h2>
+      <div class="note">Resets every 2 months · shared across everyone using this puzzle</div>
+      <ol id="leaderboard-list"></ol>
+    </div>
+  </div>
+
+  <p class="disclosure">Puzzles and best times are stored so you don't repeat one you've already solved.</p>
+</div>
+
+<dialog id="win-dialog">
+  <form id="win-form">
+    <h2>Solved</h2>
+    <p id="win-time"></p>
+    <label>Name for the leaderboard
+      <input type="text" id="player-name" maxlength="20" placeholder="Anonymous" />
+    </label>
+    <div class="dialog-buttons">
+      <button type="button" class="primary" id="submit-score">Submit</button>
+      <button type="button" id="skip-score">Skip</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+
+/* ---------------- Sudoku engine ---------------- */
+
+function emptyGrid() { return Array.from({length:9}, () => Array(9).fill(0)); }
+function cloneGrid(g) { return g.map(r => r.slice()); }
+
+function isSafe(grid, row, col, num) {
+  for (let i=0;i<9;i++) if (grid[row][i]===num || grid[i][col]===num) return false;
+  const br = row-(row%3), bc = col-(col%3);
+  for (let r=0;r<3;r++) for (let c=0;c<3;c++) if (grid[br+r][bc+c]===num) return false;
+  return true;
+}
+
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function fillGrid(grid) {
+  for (let row=0;row<9;row++) for (let col=0;col<9;col++) {
+    if (grid[row][col]===0) {
+      for (const num of shuffled([1,2,3,4,5,6,7,8,9])) {
+        if (isSafe(grid,row,col,num)) {
+          grid[row][col]=num;
+          if (fillGrid(grid)) return true;
+          grid[row][col]=0;
+        }
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+function generateSolvedGrid() { const g=emptyGrid(); fillGrid(g); return g; }
+
+function countSolutions(grid, limit=2) {
+  let count=0;
+  function solve(g) {
+    if (count>=limit) return;
+    for (let row=0;row<9;row++) for (let col=0;col<9;col++) {
+      if (g[row][col]===0) {
+        for (let num=1;num<=9;num++) {
+          if (isSafe(g,row,col,num)) {
+            g[row][col]=num; solve(g); g[row][col]=0;
+            if (count>=limit) return;
+          }
+        }
+        return;
+      }
+    }
+    count++;
+  }
+  solve(cloneGrid(grid));
+  return count;
+}
+
+const DIFFICULTY_CLUES = { easy:[40,45], normal:[32,36], hard:[24,28] };
+
+function makePuzzle(solution, difficulty) {
+  const [minC,maxC] = DIFFICULTY_CLUES[difficulty] || DIFFICULTY_CLUES.normal;
+  const targetClues = minC + Math.floor(Math.random()*(maxC-minC+1));
+  const toRemove = 81-targetClues;
+  const puzzle = cloneGrid(solution);
+  const positions = shuffled(Array.from({length:81},(_,i)=>[Math.floor(i/9), i%9]));
+  let removed=0;
+  for (const [row,col] of positions) {
+    if (removed>=toRemove) break;
+    const backup = puzzle[row][col];
+    puzzle[row][col]=0;
+    if (countSolutions(puzzle,2)===1) removed++;
+    else puzzle[row][col]=backup;
+  }
+  return puzzle;
+}
+
+function gridToString(g) { return g.map(r=>r.join('')).join(''); }
+
+function hashSolution(str) {
+  let hash=5381;
+  for (let i=0;i<str.length;i++) hash=(hash*33)^str.charCodeAt(i);
+  return (hash>>>0).toString(16);
+}
+
+async function generateUniquePuzzle(difficulty) {
+  const usedKey = `used-hashes:${difficulty}`;
+  let usedSet = new Set();
+  try {
+    const res = await window.storage.get(usedKey, false);
+    if (res) usedSet = new Set(JSON.parse(res.value));
+  } catch (e) { /* key not found yet, start fresh */ }
+
+  let solution, solutionStr, hash;
+  let attempts = 0;
+  do {
+    solution = generateSolvedGrid();
+    solutionStr = gridToString(solution);
+    hash = hashSolution(solutionStr);
+    attempts++;
+  } while (usedSet.has(hash) && attempts < 20);
+
+  usedSet.add(hash);
+  try {
+    await window.storage.set(usedKey, JSON.stringify(Array.from(usedSet)), false);
+  } catch (e) { console.error('Could not save used-puzzle record', e); }
+
+  const puzzle = makePuzzle(solution, difficulty);
+  return { puzzle: gridToString(puzzle), solution: solutionStr };
+}
+
+/* ---------------- UI state ---------------- */
+
+const boardEl = document.getElementById('board');
+const numberPadEl = document.getElementById('number-pad');
+const difficultySelect = document.getElementById('difficulty');
+const newGameBtn = document.getElementById('new-game');
+const stopwatchEl = document.getElementById('stopwatch');
+const statusEl = document.getElementById('status');
+const eraseBtn = document.getElementById('erase-btn');
+const checkBtn = document.getElementById('check-btn');
+const winDialog = document.getElementById('win-dialog');
+const winTimeEl = document.getElementById('win-time');
+const playerNameInput = document.getElementById('player-name');
+const submitScoreBtn = document.getElementById('submit-score');
+const skipScoreBtn = document.getElementById('skip-score');
+const leaderboardList = document.getElementById('leaderboard-list');
+const lbTitle = document.getElementById('lb-title');
+
+let currentSolution = null;
+let board = [];
+let givenMask = [];
+let selected = null;
+let timerInterval = null;
+let elapsedSeconds = 0;
+let gameActive = false;
+
+function stringTo2D(str) {
+  const grid=[];
+  for (let r=0;r<9;r++) grid.push(str.slice(r*9,r*9+9).split('').map(Number));
+  return grid;
+}
+
+function formatTime(total) {
+  const m=Math.floor(total/60).toString().padStart(2,'0');
+  const s=Math.floor(total%60).toString().padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+function startTimer() {
+  stopTimer();
+  elapsedSeconds=0;
+  stopwatchEl.textContent = formatTime(0);
+  stopwatchEl.classList.remove('done');
+  timerInterval = setInterval(()=>{ elapsedSeconds++; stopwatchEl.textContent=formatTime(elapsedSeconds); },1000);
+}
+function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval=null; }
+
+function buildBoardDOM() {
+  boardEl.innerHTML='';
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+    const cell=document.createElement('div');
+    cell.className='cell';
+    cell.dataset.row=r; cell.dataset.col=c;
+    cell.addEventListener('click',()=>selectCell(r,c));
+    boardEl.appendChild(cell);
+  }
+}
+
+function buildNumberPad() {
+  numberPadEl.innerHTML='';
+  for (let n=1;n<=9;n++) {
+    const btn=document.createElement('button');
+    btn.textContent=n;
+    btn.addEventListener('click',()=>enterNumber(n));
+    numberPadEl.appendChild(btn);
+  }
+}
+
+function renderBoard() {
+  const cells = boardEl.children;
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+    const idx=r*9+c, cell=cells[idx], val=board[r][c];
+    cell.textContent = val===0 ? '' : val;
+    cell.classList.toggle('given', givenMask[r][c]);
+    cell.classList.remove('error');
+  }
+  updateSelectionHighlight();
+}
+
+function selectCell(r,c) {
+  if (!gameActive) return;
+  selected = givenMask[r][c] ? null : {row:r,col:c};
+  updateSelectionHighlight();
+}
+
+function updateSelectionHighlight() {
+  const cells = boardEl.children;
+  const selVal = selected ? board[selected.row][selected.col] : 0;
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+    const idx=r*9+c, cell=cells[idx];
+    const isSel = selected && selected.row===r && selected.col===c;
+    const isPeer = selected && (selected.row===r || selected.col===c ||
+      (Math.floor(selected.row/3)===Math.floor(r/3) && Math.floor(selected.col/3)===Math.floor(c/3)));
+    cell.classList.toggle('selected', Boolean(isSel));
+    cell.classList.toggle('peer', Boolean(isPeer) && !isSel);
+    cell.classList.toggle('same-value', !isSel && selVal!==0 && board[r][c]===selVal);
+  }
+}
+
+function enterNumber(n) {
+  if (!gameActive || !selected) return;
+  const {row,col} = selected;
+  if (givenMask[row][col]) return;
+  board[row][col]=n;
+  renderBoard();
+  checkForWin();
+}
+
+function eraseSelected() {
+  if (!gameActive || !selected) return;
+  const {row,col} = selected;
+  if (givenMask[row][col]) return;
+  board[row][col]=0;
+  renderBoard();
+}
+
+function highlightErrors() {
+  const cells = boardEl.children;
+  let hasError=false;
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+    const val=board[r][c], idx=r*9+c;
+    if (val!==0 && !givenMask[r][c]) {
+      const correct = Number(currentSolution[r*9+c]);
+      if (val!==correct) { cells[idx].classList.add('error'); hasError=true; }
+    }
+  }
+  return hasError;
+}
+
+function checkForWin() {
+  const filled = board.every(row=>row.every(v=>v!==0));
+  if (!filled) return;
+  if (board.flat().join('')===currentSolution) finishGame();
+}
+
+function finishGame() {
+  gameActive=false;
+  stopTimer();
+  stopwatchEl.classList.add('done');
+  statusEl.textContent='Solved.';
+  statusEl.className='status ok';
+  winTimeEl.textContent = `Your time: ${formatTime(elapsedSeconds)}`;
+  playerNameInput.value='';
+  winDialog.showModal();
+}
+
+async function loadNewPuzzle() {
+  gameActive=false;
+  stopTimer();
+  statusEl.textContent='Generating puzzle...';
+  statusEl.className='status';
+  const difficulty = difficultySelect.value;
+
+  const { puzzle, solution } = await generateUniquePuzzle(difficulty);
+  currentSolution = solution;
+  board = stringTo2D(puzzle);
+  givenMask = board.map(row=>row.map(v=>v!==0));
+  selected = null;
+  renderBoard();
+  statusEl.textContent='';
+  gameActive=true;
+  startTimer();
+  loadLeaderboard();
+}
+
+function runCheck() {
+  const hasError = highlightErrors();
+  statusEl.textContent = hasError ? 'Some entries look off.' : 'Looking good so far.';
+  statusEl.className = hasError ? 'status err' : 'status ok';
+}
+
+async function loadLeaderboard() {
+  const difficulty = difficultySelect.value;
+  lbTitle.textContent = `Best times — ${difficulty[0].toUpperCase()+difficulty.slice(1)}`;
+  leaderboardList.innerHTML = '<li style="opacity:0.6">Loading...</li>';
+  try {
+    const res = await window.storage.get(`leaderboard:${difficulty}`, true);
+    const entries = res ? JSON.parse(res.value) : [];
+    const periodStart = currentPeriodStart();
+    const recent = entries
+      .filter(e => new Date(e.completedAt) >= periodStart)
+      .sort((a,b)=>a.timeSeconds-b.timeSeconds)
+      .slice(0,10);
+    leaderboardList.innerHTML='';
+    if (recent.length===0) {
+      leaderboardList.innerHTML = '<li style="opacity:0.6">No times yet this period.</li>';
+      return;
+    }
+    for (const e of recent) {
+      const li=document.createElement('li');
+      li.innerHTML = `<span class="name">${escapeHTML(e.name)}</span> — <span class="time">${formatTime(e.timeSeconds)}</span>`;
+      leaderboardList.appendChild(li);
+    }
+  } catch (e) {
+    leaderboardList.innerHTML = '<li style="opacity:0.6">No times yet this period.</li>';
+  }
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Leaderboard resets on a rolling 2-month cadence from a fixed anchor.
+const LEADERBOARD_ANCHOR = new Date('2026-01-01T00:00:00Z');
+function currentPeriodStart() {
+  const now = new Date();
+  const monthsSince = (now.getFullYear()-LEADERBOARD_ANCHOR.getFullYear())*12 + (now.getMonth()-LEADERBOARD_ANCHOR.getMonth());
+  const periodsElapsed = Math.floor(monthsSince/2);
+  const start = new Date(LEADERBOARD_ANCHOR);
+  start.setMonth(start.getMonth()+periodsElapsed*2);
+  return start;
+}
+
+async function submitScore() {
+  const difficulty = difficultySelect.value;
+  const name = playerNameInput.value.trim() || 'Anonymous';
+  try {
+    const key = `leaderboard:${difficulty}`;
+    let entries = [];
+    try {
+      const res = await window.storage.get(key, true);
+      if (res) entries = JSON.parse(res.value);
+    } catch (e) { /* no entries yet */ }
+    entries.push({ name, timeSeconds: elapsedSeconds, completedAt: new Date().toISOString() });
+    await window.storage.set(key, JSON.stringify(entries), true);
+  } catch (e) {
+    console.error('Could not save score', e);
+  }
+  winDialog.close();
+  loadLeaderboard();
+}
+
+newGameBtn.addEventListener('click', loadNewPuzzle);
+difficultySelect.addEventListener('change', loadLeaderboard);
+eraseBtn.addEventListener('click', eraseSelected);
+checkBtn.addEventListener('click', runCheck);
+submitScoreBtn.addEventListener('click', submitScore);
+skipScoreBtn.addEventListener('click', ()=>winDialog.close());
+
+document.addEventListener('keydown',(e)=>{
+  if (!gameActive || !selected) return;
+  if (e.key>='1' && e.key<='9') enterNumber(Number(e.key));
+  else if (e.key==='Backspace'||e.key==='Delete'||e.key==='0') eraseSelected();
+  else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    let {row,col}=selected;
+    if (e.key==='ArrowUp') row=Math.max(0,row-1);
+    if (e.key==='ArrowDown') row=Math.min(8,row+1);
+    if (e.key==='ArrowLeft') col=Math.max(0,col-1);
+    if (e.key==='ArrowRight') col=Math.min(8,col+1);
+    selected={row,col};
+    updateSelectionHighlight();
+  }
+});
+
+buildBoardDOM();
+buildNumberPad();
+loadNewPuzzle();
+</script>
+</body>
+</html>
